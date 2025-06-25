@@ -1,0 +1,22 @@
+name: 04-call-reusable-workflow
+
+on:
+  workflow_call:
+
+jobs:
+  call-reusable:
+    uses: ./.github/workflows/module.yml
+    concurrency:
+      group: call-module-${{ github.ref }}
+      cancel-in-progress: ${{ !contains(github.ref, 'release/') }}
+    permissions:
+      contents: read
+      id-token: write
+      packages: read
+      actions: read
+    with:
+      username: 'sridharan'
+      retry-count: 3
+      notify: true
+    secrets:
+      access-token: ${{ secrets.GITHUB_TOKEN }}

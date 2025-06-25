@@ -1,0 +1,44 @@
+name: 01-basic-build-and-artifact-upload
+
+on:
+  workflow_call:
+    secrets:
+      SERVER:
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging_environment
+    permissions:
+      contents: write
+    concurrency:
+      group: build-${{ github.ref }}
+      cancel-in-progress: true
+    env:
+      JOB_NAME: build-job
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create output file
+        run: echo "$JOB_NAME-$(date)" > output.txt
+        timeout-minutes: 1
+        continue-on-error: true
+        if: github.event.schedule == '*/5 * * * *'
+      - name: Commit and push file
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add output.txt
+          git commit -m "Add output.txt from GitHub Actions"
+          git push
+        if: github.event.schedule == '*/5 * * * *'
+      - name: Upload output.txt
+        uses: actions/upload-artifact@v4
+        with:
+          name: output-file
+          path: ./output.txt
+        if: github.event.schedule == '*/5 * * * *'
+      - run: echo "SERVER = ${{ secrets.SERVER }}"
+        env:
+          SERVER: ${{ secrets.SERVER }}

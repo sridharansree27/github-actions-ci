@@ -1,0 +1,7 @@
+name: Hello World Local Action
+description: A local custom action example
+runs:
+  using: "composite"
+  steps:
+    - run: echo "👋 Hello from your local action!"
+      shell: bash

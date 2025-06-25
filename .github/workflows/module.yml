@@ -1,0 +1,83 @@
+name: Module
+
+on:
+  workflow_call:
+    inputs:
+      username:
+        description: 'Username from caller'
+        required: false
+        default: 'john-doe'
+        type: string
+      retry-count:
+        description: 'Retry attempts'
+        required: false
+        default: 1
+        type: number
+      notify:
+        description: 'Send notification'
+        required: false
+        default: false
+        type: boolean
+      environment:
+        description: 'Environment to run job in'
+        required: false
+        default: dev
+        type: string  # must be string, not `environment` type
+    outputs:
+      workflow_output1:
+        description: "Returned username"
+        value: ${{ jobs.print_info.outputs.user_output }}
+    secrets:
+      access-token:
+        description: 'Caller token'
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+  packages: read
+
+env:
+  RUN_BY: reusable-module
+  RETRIES: 3
+
+defaults:
+  run:
+    shell: bash
+    working-directory: .
+
+jobs:
+  print_info:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: print-${{ github.run_id }}
+      cancel-in-progress: true
+    environment:
+      name: ${{ inputs.environment }}
+    outputs:
+      user_output: ${{ steps.set_output.outputs.username }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: mkdir -p ./scripts
+      - name: Set output
+        id: set_output
+        run: echo "username=${{ inputs.username }}" >> $GITHUB_OUTPUT
+
+  use_secret:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: secret-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    environment:
+      name: ${{ inputs.environment }}
+    permissions:
+      actions: read
+    env:
+      ACCESS_ENV: token-secured
+    steps:
+      - uses: actions/checkout@v4
+      - name: Print token access
+        env:
+          TOKEN: ${{ secrets.access-token }}
+        run: |
+          echo "Access Token: $TOKEN from $ACCESS_ENV"

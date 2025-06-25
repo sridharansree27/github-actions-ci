@@ -1,0 +1,80 @@
+name: 06-matrix-strategy-and-output-demo
+
+on:
+  workflow_call:
+
+jobs:
+  matrix_output_job:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      matrix:
+        version: [1, 2, 3]
+    outputs:
+      output_1: ${{ steps.gen_output.outputs.output_1 }}
+      output_2: ${{ steps.gen_output.outputs.output_2 }}
+      output_3: ${{ steps.gen_output.outputs.output_3 }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate output
+        id: gen_output
+        run: |
+          version="${{ matrix.version }}"
+          echo "output_${version}=${version}" >> "$GITHUB_OUTPUT"
+  
+  read_matrix_outputs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [matrix_output_job]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read matrix outputs
+        run: echo '${{ toJSON(needs.matrix_output_job.outputs) }}'
+
+  matrix_example:
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        version: [14, 16]
+        experimental: [false]
+        include:
+          - os: windows-latest
+            version: 16
+            npm: 8
+          - os: ubuntu-latest
+            version: 15
+            experimental: true
+          - os: macos-latest
+            version: 18
+            experimental: true
+        exclude:
+          - os: ubuntu-latest
+            version: 14
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental || false }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.version }}
+
+      - name: Conditionally install npm
+        if: ${{ matrix.npm }}
+        run: npm install -g npm@${{ matrix.npm }}
+
+      - name: Show version info
+        run: |
+          echo "OS: ${{ matrix.os }}"
+          echo "Node: ${{ matrix.version }}"
+          echo "Experimental: ${{ matrix.experimental }}"
+          echo "NPM: ${{ matrix.npm || 'default' }}"
+        continue-on-error: ${{ matrix.experimental || false }}
+
+      - name: Check npm version
+        run: npm --version

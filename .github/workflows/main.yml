@@ -1,0 +1,112 @@
+name: Caller Workflow
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: 'Log level for the run'
+        required: true
+        default: 'warning'
+        type: choice
+        options: [info, warning, debug]
+      print_tags:
+        description: 'Whether to print tags'
+        required: true
+        type: boolean
+      tags:
+        description: 'Test tags to pass'
+        required: true
+        type: string
+      environment:
+        description: 'Environment to run tests against'
+        required: true
+        default: dev
+        type: environment
+      retry_count:
+        description: 'Retry attempts'
+        required: false
+        default: 2
+        type: number
+  workflow_run:
+    workflows: ["Module"]
+    types: [completed]
+    branches:
+      - 'main/**'
+      - '!main/**-alpha'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+
+env:
+  SERVER: production
+  COMMON_TAG: default-tag
+  GLOBAL_TIMEOUT: 5
+
+defaults:
+  run:
+    shell: bash
+    working-directory: .
+
+jobs:
+  job1:
+    uses: ./.github/workflows/01-basic-build-and-artifact-upload.yml
+    secrets:
+      SERVER: ${{ secrets.SERVER }}
+    permissions:
+      contents: write
+
+  job2:
+    uses: ./.github/workflows/02-scheduled-run-and-artifact-download.yml
+    needs: job1
+    permissions:
+      statuses: read
+  job3:
+    uses: ./.github/workflows/03-dispatch-input-handling.yml
+    permissions:
+      actions: read
+  job4:
+    uses: ./.github/workflows/04-call-reusable-workflow.yml
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+      id-token: write
+
+  job5:
+    needs: job4
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    environment:
+      name: dynamic_env
+      url: ${{ steps.set_env_url.outputs.env_url }}
+    concurrency:
+      group: output-${{ github.run_id }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set dynamic environment URL
+        id: set_env_url
+        run: echo "env_url=https://env.example.com/${{ github.run_id }}" >> $GITHUB_OUTPUT
+      - name: Output result
+        run: |
+          echo "Username from reusable: ${{ needs.call-reusable.outputs.workflow_output1 }}"
+
+  job6:
+    uses: ./.github/workflows/06-matrix-strategy-and-output-demo.yml
+
+  job7:
+    uses: ./.github/workflows/07-step-level-controls-and-conditionals.yml

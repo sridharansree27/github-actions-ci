@@ -1,0 +1,43 @@
+name: 07-step-level-controls-and-conditionals
+
+on:
+  workflow_call:
+
+jobs:
+  step_concepts_demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPER_SECRET: ${{ secrets.SuperSecret || '' }}
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Dispatch-only
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: echo "Only on workflow_dispatch"
+
+      - name: GitHub Script
+        uses: actions/github-script@v7
+        with:
+          script: |
+            console.log("Hello from github-script")
+
+      - name: Local Action
+        uses: ./.github/actions/hello-world-action
+
+      - name: Show secret (if any)
+        if: ${{ env.SUPER_SECRET != '' }}
+        run: |
+          echo "Secret available: ${{ env.SUPER_SECRET }}"
+
+      - name: Secret not found
+        if: ${{ env.SUPER_SECRET == '' }}
+        run: echo "Secret is not set"
+
+      - name: Reference previous step
+        run: |
+          echo "Result of checkout: ${{ steps.checkout.conclusion }}"
+        continue-on-error: true
+        timeout-minutes: 1

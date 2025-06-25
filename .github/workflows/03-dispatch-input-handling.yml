@@ -1,0 +1,34 @@
+name: 03-dispatch-input-handling.yml
+
+on:
+  workflow_call:
+
+jobs:
+  print-dispatch-inputs:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: ${{ inputs.environment }}
+      url: https://example.com/envs/${{ inputs.environment }}
+    concurrency:
+      group: dispatch-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    permissions:
+      actions: read
+    env:
+      ENV_SOURCE: dispatch
+    steps:
+      - uses: actions/checkout@v4
+      - name: Print inputs
+        run: |
+          echo "Log Level: ${{ inputs.logLevel }}"
+          echo "Tags: ${{ inputs.tags }}"
+          echo "Retry Count: ${{ inputs.retry_count }}"
+          echo "Environment Source: $ENV_SOURCE"
+      - name: Conditionally print tags
+        if: ${{ inputs.print_tags }}
+        run: |
+          echo "Printing tags: ${{ inputs.tags }}"
+        env:
+          PRINT_FLAG: true

@@ -1,0 +1,29 @@
+name: 02-scheduled-run-and-artifact-download
+
+on:
+  workflow_call:
+
+jobs:
+  test_schedule:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production_environment
+      url: https://github.com
+    concurrency:
+      group: test-schedule-${{ github.head_ref || github.run_id }}
+      cancel-in-progress: true
+    permissions:
+      statuses: read
+    steps:
+      - uses: actions/download-artifact@v4
+      - name: Download output.txt
+        uses: actions/download-artifact@v4
+        with:
+          name: output-file
+        if: github.event.schedule == '*/5 * * * *'
+      - name: Read contents of output.txt
+        run: |
+          echo "Reading file from build job:"
+          cat output.txt
+        if: github.event.schedule == '*/5 * * * *'
